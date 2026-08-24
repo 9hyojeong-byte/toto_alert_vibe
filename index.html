@@ -268,12 +268,12 @@
     <div class="row">
       <label for="threshold">감도 (민감도 낮음 ← → 높음)</label>
     </div>
-    <input type="range" id="threshold" min="0.3" max="6" step="0.1" value="1.8">
-    <div class="hint" id="threshHint">임계값: 1.8 m/s²</div>
+    <input type="range" id="threshold" min="0.3" max="6" step="0.1" value="0.9">
+    <div class="hint" id="threshHint">임계값: 0.9 m/s²</div>
 
     <div class="row" style="margin-top:16px;">
       <label for="cooldown">알림 재전송 간격 (초)</label>
-      <input type="text" id="cooldown" value="30" style="width:70px;">
+      <input type="text" id="cooldown" value="5" style="width:70px;">
     </div>
   </div>
 
@@ -370,7 +370,7 @@
     ringValue.textContent = smoothed.toFixed(2);
 
     const threshold = parseFloat(thresholdInput.value);
-    const cooldownMs = (parseInt(cooldownInput.value, 10) || 30) * 1000;
+    const cooldownMs = (parseInt(cooldownInput.value, 10) || 5) * 1000;
 
     if(armed && smoothed >= threshold){
       ring.classList.add('tripped');
