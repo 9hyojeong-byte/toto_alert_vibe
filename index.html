@@ -433,6 +433,27 @@
     }
   });
 
+  function enterFullscreen(){
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
+    if(!req) return;
+    try{
+      const p = req.call(el);
+      if(p && p.catch) p.catch(() => {});
+    }catch(e){}
+  }
+
+  function exitFullscreen(){
+    const isFs = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement;
+    if(!isFs) return;
+    const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen;
+    if(!exit) return;
+    try{
+      const p = exit.call(document);
+      if(p && p.catch) p.catch(() => {});
+    }catch(e){}
+  }
+
   async function startMonitoring(){
     // iOS permission flow (harmless no-op on Android)
     if(typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function'){
@@ -466,10 +487,16 @@
     toggleBtn.classList.remove('on');
     addLog('감시 중지');
     if(wakeLock){ wakeLock.release(); wakeLock = null; }
+    exitFullscreen();
   }
 
   toggleBtn.addEventListener('click', () => {
-    if(armed) stopMonitoring(); else startMonitoring();
+    if(armed){
+      stopMonitoring();
+    } else {
+      enterFullscreen();
+      startMonitoring();
+    }
   });
 
   testBtn.addEventListener('click', () => {
@@ -477,6 +504,7 @@
   });
 
   nightBtn.addEventListener('click', async () => {
+    enterFullscreen();
     if(!armed){ await startMonitoring(); }
     nightOverlay.classList.add('show');
   });
