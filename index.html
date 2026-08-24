@@ -323,7 +323,7 @@
 
   // Restore topic from a random default so user has something to copy
   if(!topicInput.value){
-    topicInput.value = 'neovoricha-' + String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
+    topicInput.value = 'neovoricha' + String(Math.floor(Math.random() * 1e4)).padStart(4, '0');
   }
 
   thresholdInput.addEventListener('input', () => {
