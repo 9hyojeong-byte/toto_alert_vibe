@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>침대 진동 감지기</title>
+<meta name="description" content="침대 위 진동을 감지해 ntfy로 알림을 보내는 도구">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b0f14">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="진동 감지기">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+  :root{
+    --bg: #0b0f14;
+    --panel: #131a22;
+    --panel-2: #1a2330;
+    --line: #223041;
+    --text: #e7eef5;
+    --muted: #7f93a8;
+    --accent: #5fd1a8;
+    --accent-dim: #2e5c4c;
+    --alert: #ff6b5e;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background: radial-gradient(1200px 800px at 50% -10%, #16202b 0%, var(--bg) 60%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wrap{
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 28px 20px 60px;
+    min-height: 100%;
+  }
+  .eyebrow{
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 6px;
+  }
+  h1{
+    font-size: 26px;
+    margin: 0 0 4px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .sub{
+    color: var(--muted);
+    font-size: 14px;
+    margin: 0 0 28px;
+    line-height: 1.5;
+  }
+
+  .status-ring{
+    position: relative;
+    width: 190px; height: 190px;
+    margin: 8px auto 22px;
+    border-radius: 50%;
+    display:flex; align-items:center; justify-content:center;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    transition: box-shadow .25s ease, border-color .25s ease;
+  }
+  .status-ring.armed{
+    box-shadow: 0 0 0 6px rgba(95,209,168,0.08);
+    border-color: var(--accent-dim);
+  }
+  .status-ring.tripped{
+    box-shadow: 0 0 0 10px rgba(255,107,94,0.14);
+    border-color: var(--alert);
+  }
+  .status-ring .value{
+    font-family: var(--mono);
+    font-size: 40px;
+    font-weight: 600;
+  }
+  .status-ring .unit{
+    position:absolute;
+    bottom: 40px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+  .status-ring .label{
+    position: absolute;
+    top: 28px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .panel{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 18px;
+    margin-bottom: 14px;
+  }
+  .row{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .row + .row{ margin-top: 16px; }
+  label{
+    font-size: 14px;
+    color: var(--text);
+  }
+  .hint{
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+  input[type="text"]{
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: var(--mono);
+    width: 150px;
+    text-align: right;
+  }
+  input[type="range"]{
+    width: 100%;
+    accent-color: var(--accent);
+  }
+  .field-col{ width: 100%; }
+
+  button{
+    appearance: none;
+    border: none;
+    border-radius: 12px;
+    padding: 16px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    width: 100%;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  #toggleBtn{
+    background: var(--accent);
+    color: #05201a;
+  }
+  #toggleBtn.on{
+    background: var(--alert);
+    color: #2a0906;
+  }
+  #testBtn{
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    margin-top: 10px;
+  }
+
+  .log{
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    max-height: 130px;
+    overflow-y: auto;
+  }
+  .log div{ padding: 3px 0; border-bottom: 1px dashed var(--line); }
+  .log div:last-child{ border-bottom:none; }
+  .log .hit{ color: var(--alert); }
+
+  .badge{
+    display:inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 100px;
+    border: 1px solid var(--line);
+    color: var(--muted);
+  }
+  .badge.ok{ color: var(--accent); border-color: var(--accent-dim); }
+  .badge.bad{ color: var(--alert); border-color: #5c2e2a; }
+
+  #nightBtn{
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    margin-top: 10px;
+  }
+
+  #nightOverlay{
+    position: fixed;
+    inset: 0;
+    background: #000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 14px;
+    z-index: 999;
+  }
+  #nightOverlay.show{ display: flex; }
+  #nightDot{
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent-dim);
+    transition: background .2s ease, box-shadow .2s ease;
+  }
+  #nightDot.tripped{
+    background: var(--alert);
+    box-shadow: 0 0 14px 4px rgba(255,107,94,0.5);
+  }
+  #nightText{
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: #333;
+  }
+  #nightExit{
+    position: absolute;
+    bottom: 24px;
+    background: transparent;
+    border: 1px solid #222;
+    color: #444;
+    font-size: 11px;
+    padding: 8px 14px;
+    border-radius: 100px;
+    width: auto;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Bed Vibration Monitor</p>
+  <h1>침대 진동 감지기</h1>
+  <p class="sub">이 폰을 침대 위나 매트리스 아래에 두고 감시를 시작하세요. 진동이 감지되면 설정한 ntfy 토픽으로 알림이 전송됩니다.</p>
+
+  <div class="status-ring" id="ring">
+    <span class="label" id="ringLabel">대기중</span>
+    <span class="value" id="ringValue">0.00</span>
+    <span class="unit">m/s² (움직임량)</span>
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <div class="field-col">
+        <label for="topic">ntfy.sh 토픽 이름</label>
+        <div class="hint" id="topicHint">알림 받을 폰에서 같은 이름을 ntfy 앱(또는 https://ntfy.sh/토픽이름)으로 구독하세요.</div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <input type="text" id="topic" placeholder="예: my-bed-3fx92" />
+      <span class="badge" id="permBadge">센서 확인중</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <label for="threshold">감도 (민감도 낮음 ← → 높음)</label>
+    </div>
+    <input type="range" id="threshold" min="0.3" max="6" step="0.1" value="1.8">
+    <div class="hint" id="threshHint">임계값: 1.8 m/s²</div>
+
+    <div class="row" style="margin-top:16px;">
+      <label for="cooldown">알림 재전송 간격 (초)</label>
+      <input type="text" id="cooldown" value="30" style="width:70px;">
+    </div>
+  </div>
+
+  <button id="toggleBtn">감시 시작</button>
+  <button id="nightBtn">취침 모드 (화면 어둡게)</button>
+  <button id="testBtn">테스트 알림 보내기</button>
+
+  <div class="panel" style="margin-top:14px;">
+    <div class="row" style="margin-bottom:8px;">
+      <label>최근 기록</label>
+      <span class="badge" id="wakeBadge">화면 유지: -</span>
+    </div>
+    <div class="log" id="log"><div>기록 없음</div></div>
+  </div>
+</div>
+
+<div id="nightOverlay">
+  <div id="nightDot"></div>
+  <div id="nightText">감시중 · 터치하면 나가기</div>
+  <button id="nightExit">밝은 화면으로</button>
+</div>
+
+<script>
+(function(){
+  const ring = document.getElementById('ring');
+  const ringValue = document.getElementById('ringValue');
+  const ringLabel = document.getElementById('ringLabel');
+  const topicInput = document.getElementById('topic');
+  const thresholdInput = document.getElementById('threshold');
+  const threshHint = document.getElementById('threshHint');
+  const cooldownInput = document.getElementById('cooldown');
+  const toggleBtn = document.getElementById('toggleBtn');
+  const testBtn = document.getElementById('testBtn');
+  const permBadge = document.getElementById('permBadge');
+  const wakeBadge = document.getElementById('wakeBadge');
+  const logEl = document.getElementById('log');
+  const nightBtn = document.getElementById('nightBtn');
+  const nightOverlay = document.getElementById('nightOverlay');
+  const nightDot = document.getElementById('nightDot');
+  const nightExit = document.getElementById('nightExit');
+
+  let armed = false;
+  let lastNotify = 0;
+  let wakeLock = null;
+  let baseline = null;
+  let smoothed = 0;
+
+  // Restore topic from a random default so user has something to copy
+  if(!topicInput.value){
+    topicInput.value = 'bed-' + Math.random().toString(36).slice(2,8);
+  }
+
+  thresholdInput.addEventListener('input', () => {
+    threshHint.textContent = '임계값: ' + parseFloat(thresholdInput.value).toFixed(1) + ' m/s²';
+  });
+
+  function addLog(msg, isHit){
+    const div = document.createElement('div');
+    const t = new Date().toLocaleTimeString('ko-KR', {hour12:false});
+    div.textContent = '[' + t + '] ' + msg;
+    if(isHit) div.className = 'hit';
+    if(logEl.firstChild && logEl.firstChild.textContent === '기록 없음'){
+      logEl.innerHTML = '';
+    }
+    logEl.insertBefore(div, logEl.firstChild);
+    while(logEl.children.length > 40) logEl.removeChild(logEl.lastChild);
+  }
+
+  async function sendNotification(msg){
+    const topic = topicInput.value.trim();
+    if(!topic){ addLog('토픽이 비어있어 전송 실패'); return; }
+    try{
+      await fetch('https://ntfy.sh/' + encodeURIComponent(topic), {
+        method: 'POST',
+        headers: { 'Title': 'Bed Vibration Alert' },
+        body: msg
+      });
+      addLog('알림 전송: ' + msg, true);
+    }catch(e){
+      addLog('알림 전송 실패 (인터넷 연결 확인)');
+    }
+  }
+
+  function handleMotion(e){
+    const a = e.accelerationIncludingGravity || e.acceleration;
+    if(!a || a.x === null) return;
+    const mag = Math.sqrt((a.x||0)**2 + (a.y||0)**2 + (a.z||0)**2);
+    if(baseline === null) baseline = mag;
+    // slow-moving baseline to ignore static tilt, fast delta = vibration
+    baseline = baseline * 0.98 + mag * 0.02;
+    const delta = Math.abs(mag - baseline);
+    smoothed = smoothed * 0.6 + delta * 0.4;
+
+    ringValue.textContent = smoothed.toFixed(2);
+
+    const threshold = parseFloat(thresholdInput.value);
+    const cooldownMs = (parseInt(cooldownInput.value, 10) || 30) * 1000;
+
+    if(armed && smoothed >= threshold){
+      ring.classList.add('tripped');
+      ringLabel.textContent = '진동 감지!';
+      const now = Date.now();
+      if(now - lastNotify > cooldownMs){
+        lastNotify = now;
+        sendNotification('진동 강도 ' + smoothed.toFixed(2) + ' m/s² 감지됨 (' + new Date().toLocaleTimeString('ko-KR') + ')');
+      } else {
+        addLog('감지됨 (쿨다운 중, 알림 생략)');
+      }
+      nightDot.classList.add('tripped');
+      setTimeout(() => {
+        ring.classList.remove('tripped');
+        nightDot.classList.remove('tripped');
+      }, 900);
+    } else if(armed){
+      ringLabel.textContent = '감시중';
+    }
+  }
+
+  async function requestWakeLock(){
+    try{
+      if('wakeLock' in navigator){
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeBadge.textContent = '화면 유지: 켜짐';
+        wakeBadge.className = 'badge ok';
+        wakeLock.addEventListener('release', () => {
+          wakeBadge.textContent = '화면 유지: 꺼짐';
+          wakeBadge.className = 'badge bad';
+        });
+      } else {
+        wakeBadge.textContent = '화면 유지: 미지원 브라우저';
+        wakeBadge.className = 'badge bad';
+      }
+    }catch(e){
+      wakeBadge.textContent = '화면 유지: 실패';
+      wakeBadge.className = 'badge bad';
+    }
+  }
+
+  document.addEventListener('visibilitychange', async () => {
+    if(armed && document.visibilityState === 'visible' && wakeLock === null){
+      requestWakeLock();
+    }
+  });
+
+  async function startMonitoring(){
+    // iOS permission flow (harmless no-op on Android)
+    if(typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function'){
+      try{
+        const perm = await DeviceMotionEvent.requestPermission();
+        if(perm !== 'granted'){
+          permBadge.textContent = '센서 권한 거부됨';
+          permBadge.className = 'badge bad';
+          return;
+        }
+      }catch(e){}
+    }
+    window.addEventListener('devicemotion', handleMotion);
+    permBadge.textContent = '센서 연결됨';
+    permBadge.className = 'badge ok';
+    armed = true;
+    ring.classList.add('armed');
+    ringLabel.textContent = '감시중';
+    toggleBtn.textContent = '감시 중지';
+    toggleBtn.classList.add('on');
+    addLog('감시 시작');
+    requestWakeLock();
+  }
+
+  function stopMonitoring(){
+    armed = false;
+    window.removeEventListener('devicemotion', handleMotion);
+    ring.classList.remove('armed', 'tripped');
+    ringLabel.textContent = '대기중';
+    toggleBtn.textContent = '감시 시작';
+    toggleBtn.classList.remove('on');
+    addLog('감시 중지');
+    if(wakeLock){ wakeLock.release(); wakeLock = null; }
+  }
+
+  toggleBtn.addEventListener('click', () => {
+    if(armed) stopMonitoring(); else startMonitoring();
+  });
+
+  testBtn.addEventListener('click', () => {
+    sendNotification('테스트 알림입니다. (' + new Date().toLocaleTimeString('ko-KR') + ')');
+  });
+
+  nightBtn.addEventListener('click', async () => {
+    if(!armed){ await startMonitoring(); }
+    nightOverlay.classList.add('show');
+  });
+  nightExit.addEventListener('click', (e) => {
+    e.stopPropagation();
+    nightOverlay.classList.remove('show');
+  });
+
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+
+  // Initial sensor availability check
+  if(typeof DeviceMotionEvent === 'undefined'){
+    permBadge.textContent = '이 브라우저는 센서 미지원';
+    permBadge.className = 'badge bad';
+  } else {
+    permBadge.textContent = '감시 시작을 눌러 센서 연결';
+  }
+})();
+</script>
+</body>
+</html>
