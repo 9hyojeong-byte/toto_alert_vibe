@@ -326,8 +326,23 @@
     topicInput.value = 'neovoricha' + String(Math.floor(Math.random() * 1e4)).padStart(4, '0');
   }
 
+  const THRESHOLD_KEY = 'bedVibration.threshold';
+  const COOLDOWN_KEY = 'bedVibration.cooldown';
+
+  const savedThreshold = localStorage.getItem(THRESHOLD_KEY);
+  if(savedThreshold !== null) thresholdInput.value = savedThreshold;
+  threshHint.textContent = '임계값: ' + parseFloat(thresholdInput.value).toFixed(1) + ' m/s²';
+
+  const savedCooldown = localStorage.getItem(COOLDOWN_KEY);
+  if(savedCooldown !== null) cooldownInput.value = savedCooldown;
+
   thresholdInput.addEventListener('input', () => {
     threshHint.textContent = '임계값: ' + parseFloat(thresholdInput.value).toFixed(1) + ' m/s²';
+    localStorage.setItem(THRESHOLD_KEY, thresholdInput.value);
+  });
+
+  cooldownInput.addEventListener('input', () => {
+    localStorage.setItem(COOLDOWN_KEY, cooldownInput.value);
   });
 
   function addLog(msg, isHit){
